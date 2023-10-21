@@ -11,6 +11,10 @@ Fetch the repository and run runme.py
 
 ### How it works
 All of the signal processing routines are written in mp
+[signal processing](/readme images/example_spec.png)
+![example excel output](/readme images/example_excel.png)
+
+
 
 ### Microplastic Library
 A library of 370+ Raman spectra from 10 different plastic material types. The library contains Raman spectra
