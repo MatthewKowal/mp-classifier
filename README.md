@@ -10,8 +10,7 @@ Best matches are tabulated into an excel file and processed spectral images are 
 Fetch the repository and run runme.py
 
 ### How it works
-All of the signal processing routines are written in mp
-
+All of the signal processing routines are described in the methods of mp_backend.py
 
 
 ### Microplastic Library
