@@ -5,6 +5,13 @@
 An image processing routine normalizes unknown Raman Spectra and a library of reference materials, then matches the unknown spectra to a reference material using the dot product.
 Best matches are tabulated into an excel file and processed spectral images are available for each match. 
 
+### How to use it
+
+Fetch the repository and run runme.py
+
+### How it works
+All of the signal processing routines are written in mp
+
 ### Microplastic Library
 A library of 370+ Raman spectra from 10 different plastic material types. The library contains Raman spectra
 collected in Ed Grant's lab in the Chemistry department at the University of British Columbia on an Olympus BX-51
