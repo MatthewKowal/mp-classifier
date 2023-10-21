@@ -11,7 +11,6 @@ Fetch the repository and run runme.py
 
 ### How it works
 All of the signal processing routines are written in mp
-[![signal processing](/readme images/example_spec.png)](https://github.com/MatthewKowal/mp-classifier/blob/main/readme%20images/example_spec.png)
 
 
 
