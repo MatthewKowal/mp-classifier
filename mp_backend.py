@@ -32,6 +32,7 @@ class Spectra:
         self.status     = status
         self.match      = "no match yet"
         self.dotscore   = 0
+        self.dotproduct = 0
         self.matchspec  = pd.DataFrame()
         self.min        = 0
         self.max        = 0
@@ -52,13 +53,23 @@ class Spectra:
 '''
 #!!!  
 import termplotlib as tpl
-def import_raw_library(path_, wavenum_min, wavenum_max, save_pickle):
+def import_raw_library(librarypath):
     '''reads a folder tree of raw plastic Raman standard spectra.
         Then, processed them and saves the data as a pickle file'''
     
     print("Importing Spectra...")
     
-    filelist = get_lib_filelist(path_)
+    #check for processed library pickle file
+    picklefilename = "mp library processed.pickle"
+    rootpath, filename = os.path.split(__file__)  # get folder and filename of this script
+    pfilepath = os.path.join(rootpath, picklefilename)
+    if os.path.exists(pfilepath):
+        with open(pfilepath, "rb") as f:
+            spectra_list = pickle.load(f)
+        print("\nloading processed library pickle file")
+        return spectra_list
+    
+    filelist = get_lib_filelist(librarypath)
 
     
     
@@ -67,9 +78,9 @@ def import_raw_library(path_, wavenum_min, wavenum_max, save_pickle):
     xmax_list = []
     endp_list = []
     
-    for a_file in filelist:
+    for f in filelist:
         
-        file_name = os.path.basename(a_file)       
+        file_name = os.path.basename(f)       
     
         metadata = file_name.split('__')
         if len(metadata)!=5:
@@ -85,7 +96,7 @@ def import_raw_library(path_, wavenum_min, wavenum_max, save_pickle):
         
         #read the csv file from the file list and store it in a pandas dataframe
         #print(a_file)
-        rawdata = pd.read_csv(a_file, names=['cm-1', 'int'])
+        rawdata = pd.read_csv(f, names=['cm-1', 'int'])
         rawdata['int'] = rawdata['int'].astype(float)
         
         #tabulate endpoint to later plot in a histogram
@@ -110,29 +121,31 @@ def import_raw_library(path_, wavenum_min, wavenum_max, save_pickle):
         
     print("\t", len(spectra_list), " files loaded.\n")
 
-    # plot spectra endpoint to help with choosing a proper place to trim
-    print(" minimum wavenumber values")
-    counts, bin_edges = np.histogram(xmin_list, bins=20)
-    fig = tpl.figure()
-    fig.hist(counts, bin_edges, orientation="horizontal", force_ascii=False)
-    fig.show()
-
-    print("\n maximum wavenumber values")
-    counts, bin_edges = np.histogram(xmax_list, bins=20)
-    fig = tpl.figure()
-    fig.hist(counts, bin_edges, orientation="horizontal", force_ascii=False)
-    fig.show()    
+    # # plot spectra endpoint to help with choosing a proper place to trim
+    # print(" minimum wavenumber values")
+    # counts, bin_edges = np.histogram(xmin_list, bins=20)
+    # fig = tpl.figure()
+    # fig.hist(counts, bin_edges, orientation="horizontal", force_ascii=False)
+    # fig.show()
+    # print("\n maximum wavenumber values")
+    # counts, bin_edges = np.histogram(xmax_list, bins=20)
+    # fig = tpl.figure()
+    # fig.hist(counts, bin_edges, orientation="horizontal", force_ascii=False)
+    # fig.show()    
     
     
     #process spectra
-    processed_spectra_list = processSpectra(spectra_list, wavenum_min, wavenum_max)
+    processed_spectra_list = processSpectra(spectra_list)
     
     #save processed spectra as a pickle file
+    save_pickle = True
     if save_pickle == True:
-        base_path = os.path.split(path_)[0]
-        save_pickle_path = os.path.join(base_path, "mp library processed.pickle")
-        print("saving pickle fils to: ", save_pickle_path)
-        pickle.dump(processed_spectra_list, open(save_pickle_path, "wb"))
+        rootpath, filename = os.path.split(__file__)  # get folder and filename of this script
+        #exportpath    = os.path.join(rootpath, "export")
+        #if not os.path.exists(exportpath): os.makedirs(exportpath)
+        picklepath    = os.path.join(rootpath, "mp library processed.pickle")
+        print("saving pickle fils to: ", picklepath)
+        pickle.dump(processed_spectra_list, open(picklepath, "wb"))
     
     return processed_spectra_list
 
@@ -187,6 +200,9 @@ def get_library_stats(speclist):
     return len(speclist), speclist[0].min, speclist[0].max
 
 
+
+
+
 '''
 888                            888      888     888          888                                               
 888                            888      888     888          888                                               
@@ -213,7 +229,7 @@ def get_library_stats(speclist):
 '''
 #!!!
 
-def lpmp_exp_data(exp_path, lib_list, min_wavenum, max_wavenum):
+def import_expdata(exp_path):
     
     #import experimental data
     exp_data = [] # a list to hold all the new spectra
@@ -239,30 +255,13 @@ def lpmp_exp_data(exp_path, lib_list, min_wavenum, max_wavenum):
         #exp_data is a list of Spectra that conotains all our experimental data
     
     #process spectra
-    p_exp_data = processSpectra(exp_data, min_wavenum, max_wavenum)
+    processed_expdata = processSpectra(exp_data)
 
-    #find matches between exp_data and library
-    matched_spectra = matchSpectra(p_exp_data, lib_list, 'contodo')
-    
-    #export the matched experimental data as a pickle
-    # base_path = os.path.split(exp_path)[0]
-    # save_pickle_path = os.path.join(base_path, "exp data processed and matched.pickle")
-    # pickle.dump(matched_spectra, open(save_pickle_path, "wb"))
-    
-    # a_string  = "Loaded new Experimental dataset from: " + "\n"
-    # a_string += "\t\t" + exp_path + "\n"
-    # a_string += "\t\t" + str(len(filelist)) + " files loaded" +"\n"
-    # a_string += "\nProcessed & Matched  all spectra\n"
-    # a_string += "\nSaved pickle file as: \n"
-    # a_string += "\t\t" + save_pickle_path
-    # #a_string += exp_path + "hhh" + "bbb" +"\n"+ lib_pkl_path +"\n"+ filelist[0] +"\n"+ filename +"\n"+ category +"\n"
-    #a_string += exp_data[0].source +"\n"+ p_exp_data[0].color  +"\n"+ lib_data[0].source +"\n"+ exp_data[0].match
-    #a_string += "\n"+ str(matched_spectra[0].dotscore)
-    #a_string += "\n"+base_path +"\n"+ save_pickle_path
-    return matched_spectra#a_string
+
+    return processed_expdata#a_string
 
 def get_exp_filelist(path): #experimental spetra are all in one folder
-    print("loading new files...")
+    print("\n\nLoading experiment files...")
     print("\t\t NOTE: all files should be in the following format: [sample name].csv ")
     print("\t\t       Be sure to use brackets!")
     filelist = []
@@ -274,21 +273,72 @@ def get_exp_filelist(path): #experimental spetra are all in one folder
     return filelist
 
 def dotScore(v1, v2):
+    
     len1 = np.sqrt(np.dot(v1, v1))
     len2 = np.sqrt(np.dot(v2, v2))
-    return np.arccos(np.dot(v1, v2) / (len1 * len2))
+    ds = np.arccos(np.dot(v1, v2) / (len1 * len2))
+    #print(ds)
+    return ds
 
-def matchSpectra(exp_list, lib_list, col):
+def dotProduct(v1, v2):
+    
+    len1 = np.sqrt(np.dot(v1, v1))
+    len2 = np.sqrt(np.dot(v2, v2))
+    dp = np.dot(v1, v2) / (len1 * len2)
+    #print(dp)
+    return np.cos(dp)
+
+
+
+def make_equal_spec_length(exp, lib):
+    
+    col= 'contodo'
+    emin, emax = np.min(exp.specdata["cm-1"]), np.max(exp.specdata["cm-1"])
+    lmin, lmax = np.min(lib.specdata["cm-1"]), np.max(lib.specdata["cm-1"])
+    dif1 = emin - lmin
+    dif2 = emax - lmax
+    
+    expfront, libfront = 0, 0
+    expback, libback   = -1, -1
+    
+    if dif1 > 0: libfront = int(dif1)
+    if dif1 < 0: expfront = int(dif1 * -1) 
+    
+    if dif2 > 0: expback  = int(dif2 * -1) -1
+    if dif2 < 0: libback  = int(dif2) -1
+    
+    xdata = np.array(exp.specdata[col])
+    ldata = np.array(lib.specdata[col])
+    xdata_ = xdata[expfront:expback]
+    ldata_ = ldata[libfront:libback]
+    
+    # print("\n exp", emin, emax, "\n lib", lmin, lmax, "\n difs", dif1, dif2)
+    # print("original lengths:", len(xdata), len(ldata))
+    # print("exp trim:", expfront, expback, "\nlib trim:", libfront, libback)
+    # print(type(xdata), type(ldata))
+    # print("new lengths:", len(xdata_), len(ldata_))
+    return xdata_, ldata_
+
+
+def matchSpectra(exp_list, lib_list):
+    
     matched_exp_list = []
-    for s in exp_list:  
+    
+    for exp in exp_list:  #loop through each experimental data
         scores = []
-        for l in lib_list:
-            scores.append(dotScore(s.specdata[col], l.specdata[col]))           
+        dotproducts = []
+        for lib in lib_list:
+            xdata_, ldata_ = make_equal_spec_length(exp, lib)
+            scores.append(dotScore(xdata_,ldata_)) 
+            dotproducts.append(dotProduct(xdata_, ldata_))
+            
         best_match_idx = np.argmin(scores)       
-        s.match = lib_list[best_match_idx].category
-        s.dotscore = scores[best_match_idx]
-        s.matchspec = lib_list[best_match_idx].specdata        
-        matched_exp_list.append(s)    
+        exp.match      = lib_list[best_match_idx].category
+        exp.dotscore   = scores[best_match_idx]
+        exp.dotproduct = dotproducts[best_match_idx]
+        exp.matchspec  = lib_list[best_match_idx].specdata        
+        matched_exp_list.append(exp)  
+        
     return matched_exp_list
 
 
@@ -328,14 +378,14 @@ Y88b  d88P 888 Y88b 888 888  888 888  888 888
 '''
 #!!!
 
-def processSpectra(spectra_list, rangeMin, rangeMax):
+def processSpectra(spectra_list):
 
     PRINT_STUFF = False
     
     print("processing data...\n\t-Resampling...\n\tCalculating Gradient...\n\t",
           "Calculating Zero-Baseline...\n\tCalculating DWT Coefficients")
-    c=0        
-    for s in spectra_list:
+           
+    for c, s in enumerate(spectra_list):
         #print("WORKING ON            ", s.filename)
         #print(a_spectra.status)
         if s.status == "processed":
@@ -343,37 +393,18 @@ def processSpectra(spectra_list, rangeMin, rangeMax):
         elif s.status == "raw":
             #print("processing raw data...")
             
-            #################################################
-            #                                               #
-            #   determine the length of each Spectra        #
-            #     -do you want to pick the endpoints?       #
-            #     -or do you want to leave them untrimmed   #
-            #                                               #
-            #################################################
+            #define the beginning and end point as integers
+            start = int(s.rawdata['cm-1'].min()+1)#.astype(int)
+            stop = int(s.rawdata['cm-1'].max())#.astype(int)
+            #print("\nstart",start,"\nstop",stop)
+            if (stop-start)%2 == 1:  stop-=1 #make sure spectrum is even
+            num=stop-start
+
+           
+            # s.min = rangeMin
+            # s.max = rangeMax
             
-            #print(s.rawdata)
-            trim_all_spectra = True #should we trim all spectra so theyre all
-                                    #the same length, start and stop point?
-            if trim_all_spectra == False:
-                start = (s.rawdata['cm-1'].min()+1).astype(int)
-                stop = s.rawdata['cm-1'].max().astype(int)
-                if (stop-start)%2 == 1:  stop-=1 #make sure spectrum is even
-                num=stop-start
-            elif trim_all_spectra == True:
-                start = rangeMin
-                stop = rangeMax
-                if (stop-start)%2 == 1:  stop-=1 #make sure spectrum is even
-                num=stop-start
-            #print(start, stop, num)
-            
-            s.min = rangeMin
-            s.max = rangeMax
-            
-            #############################
-            #                           #
-            #   resample the spectra    #
-            #                           #
-            #############################
+            ''' Resample the Spectrum '''
             #print(s.rawdata)
             #assign the cm-1 columns to be the index of the raw data
             s.rawdata.index = s.rawdata['cm-1']
@@ -398,17 +429,14 @@ def processSpectra(spectra_list, rangeMin, rangeMax):
             s.specdata = resampled_spectrum
             #print(resampled_spectrum)
             
-            #############################
-            #                           #
-            #   prepare gradient        #
-            #   processed spectra       #
-            #                           #
-            #############################
+
+            ''' Flatten the first and last 50 data points '''
             trimlen = 50
             #print(type(s.specdata))
             #print(s.specdata['int'].iloc[trimlen])
             s.specdata['int'].iloc[:trimlen] = s.specdata['int'].iloc[trimlen].copy() #flatten first n datapoints
             
+            ''' Method 0: lowpass, 2nd deriv, mean-center, l2 norm '''
             #print("print the type: ", type(spec[i].data['int']))
             #gradient & mean centered spectrum
             s.specdata['grad'] =        lowpass(s.specdata['int'].copy(), 3)
@@ -418,8 +446,7 @@ def processSpectra(spectra_list, rangeMin, rangeMax):
             s.specdata['grad'] =      normalize(s.specdata['grad'].copy())
             #print(np.sum(np.square(s.specdata['grad'])))        
             
-            ######## con todo #########
-            
+            ''' Method 1: lowpass, dwt-bg, 2nd deriv, mean-center, l2-norm'''
             #gradient & mean centered spectrum
             s.specdata['contodo'] =        lowpass(s.specdata['int'].copy(), 3)
             s.specdata['contodo'] = removebaseline(s.specdata['contodo'].copy(), 7, 10)
@@ -429,14 +456,7 @@ def processSpectra(spectra_list, rangeMin, rangeMax):
             #print(np.sum(np.square(s.specdata['grad'])))        
             
             
-            
-            #############################
-            #                           #
-            #   prepare zero-baseline   #
-            #   processed spectra       #
-            #                           #
-            #############################
-                    
+            ''' Method 2: low pass, dwt-bg, l2-norm'''        
             #zero baseline spectrum
             s.specdata['zeroed'] =        lowpass(s.specdata['int'].copy(), 3)
             s.specdata['zeroed'] = removebaseline(s.specdata['zeroed'].copy(), 7, 10)
@@ -444,31 +464,21 @@ def processSpectra(spectra_list, rangeMin, rangeMax):
             #print(spec[i].data['zeroed'].index)
             
             
-            #############################
-            #                           #
-            #   prepare dwt coeff       #
-            #   of the  spectra         #
-            #                           #
-            #############################
-            #dwt data generation
+            ''' Generate DWT data for some reason '''
             level=7
             coeffs = pywt.wavedec(s.specdata['grad'], 'sym5', level=level)
-            
             #make sure the index of the dataframe is long enough to store the longest
             #set of dwt coefficients
             dwtidx = np.linspace(0,len(coeffs[level]), (len(coeffs[level])+1))
             #print(dwtidx)
             s.dwtdata = pd.DataFrame(index=dwtidx) #initialize spectra objects dwt data as a dataframe
-            
             for i in range(len(coeffs)):
                 s.dwtdata[("dwt-"+str(i))]  = pd.Series(coeffs[i])
-                
             #s.dwtdata['dwt-0']  = pd.Series(coeffs[0])
             #s.dwtdata['dwt-1']  = pd.Series(coeffs[1])
             #s.dwtdata['dwt-2']  = pd.Series(coeffs[2])
             #s.dwtdata['dwt-3']  = pd.Series(coeffs[3])
             #s.dwtdata['dwt-4']  = pd.Series(coeffs[4])
-            
             # print("dwt0 coeffs: ", len(coeffs[0]))
             # print(s.dwtdata['dwt-0'].index)
             # print("dwt1 coeffs: ", len(coeffs[1]))
@@ -480,16 +490,12 @@ def processSpectra(spectra_list, rangeMin, rangeMax):
             # print("dwt4 coeffs: ", len(coeffs[4]))
             # print(s.dwtdata['dwt-4'])
             
+            ''' generate training data for some reason '''
             s.traindata = s.specdata['grad']#.to_numpy()
             
-            #############################
-            #                           #
-            #   change the status       #
-            #                           #
-            #############################
+            #update status
             if PRINT_STUFF: print(s.filename, "...Done")
             s.status = "processed"
-            c+=1
     print("\t\t", c, "of", len(spectra_list), "files processed.")
            
     return spectra_list
@@ -578,7 +584,8 @@ Y88b  d88P Y8b.     888  888 Y8b.     888    888  888 Y88b. Y8b.
 '''                                        
 #!!!
 
-def export_excel(matched_speclist, output_dir):
+def export_excel(matched_speclist):
+    print("\nExporting excel file")
     #load matched data
     #m_exp_data =  pickle.load(open(m_exp_data_pkl_path, 'rb'))
     m_exp_data = matched_speclist
@@ -594,16 +601,23 @@ def export_excel(matched_speclist, output_dir):
     for s in matched_speclist:
         new_row = {"sample name":s.samplename,
                    "prediction":s.match,
-                   "match score":s.dotscore,}
+                   "match score":s.dotscore,
+                   "dot product":s.dotproduct}
         #print(type(new_row))
-        print(new_row)
+        #print(new_row)
         new_row_df = pd.DataFrame(new_row, index=[0])
 
         old_rows = output.copy()
         output = pd.concat([old_rows, new_row_df], ignore_index=True)
 
+
+    #generate filename
+    rootpath, filename = os.path.split(__file__)  # get folder and filename of this script
+    exportpath    = os.path.join(rootpath, "export")
+    if not os.path.exists(exportpath): os.makedirs(exportpath)
+    save_excel_path = os.path.join(exportpath, "_matched_spectra.xlsx")
+    
     #save excel file
-    save_excel_path = os.path.join(output_dir, "_matched_spectra.xlsx")
     output.to_excel(save_excel_path, index=False)
     
     
@@ -617,15 +631,22 @@ def export_excel(matched_speclist, output_dir):
     return #a_string
 
 
-def export_images(matched_speclist, output_dir): #export images
+def export_images(matched_speclist): #export images
+    print("saving images")
     col="contodo"
     # base_path = os.path.split(mpath)[0]
     # expdata_matches = pickle.load(open(mpath, 'rb'))
     
     # a_string = "Saving composite spectra images:\n"
     
+    #generate filepath
+    rootpath, filename = os.path.split(__file__)  # get folder and filename of this script
+    exportpath    = os.path.join(rootpath, "export")
+    if not os.path.exists(exportpath): os.makedirs(exportpath)
+
+    
     for s in matched_speclist:
-        img_filepath = os.path.join(output_dir, (s.samplename + "-spec.png"))
+        img_filepath = os.path.join(exportpath, (s.samplename + "-spec.png"))
     
         # plt.figure(figsize=(8,8))
         # plt.suptitle(s.samplename)
@@ -652,7 +673,7 @@ def export_images(matched_speclist, output_dir): #export images
         #           label=("Library Spectra, Processed: " + s.match))
                   
         plt.figure(figsize=(12,8))
-        plt.suptitle(s.samplename)
+        plt.suptitle((s.samplename+" - dotproduct:", str(s.dotproduct)))
     
         plt.subplot(3,1,1)
         #plot unprocessed experimental data
