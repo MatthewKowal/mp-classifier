@@ -17,14 +17,14 @@ import numpy as np
 import pywt
 import pickle
 import matplotlib.pyplot as plt
+from collections import Counter
+
 
 class Spectra:
     def __init__(self, filename, rawdata, category, color, samplename, source, status):
         self.filename  = filename
         self.rawdata    = rawdata
         self.specdata   = pd.DataFrame()
-        self.dwtdata    = pd.DataFrame()
-        self.traindata  = pd.DataFrame()
         self.category   = category
         self.color      = color
         self.samplename = samplename
@@ -52,7 +52,6 @@ class Spectra:
                                                                                        "Y88P"  
 '''
 #!!!  
-import termplotlib as tpl
 def import_raw_library(librarypath):
     '''reads a folder tree of raw plastic Raman standard spectra.
         Then, processed them and saves the data as a pickle file'''
@@ -66,7 +65,8 @@ def import_raw_library(librarypath):
     if os.path.exists(pfilepath):
         with open(pfilepath, "rb") as f:
             spectra_list = pickle.load(f)
-        print("\nloading processed library pickle file")
+        print("Loading processed library pickle file...")
+        print("\t", len(spectra_list), " files loaded.\n")
         return spectra_list
     
     filelist = get_lib_filelist(librarypath)
@@ -118,22 +118,8 @@ def import_raw_library(librarypath):
                           rawdata,
                           category, color, samplename, source, status)
         spectra_list.append(new_spectra)   
-        
     print("\t", len(spectra_list), " files loaded.\n")
-
-    # # plot spectra endpoint to help with choosing a proper place to trim
-    # print(" minimum wavenumber values")
-    # counts, bin_edges = np.histogram(xmin_list, bins=20)
-    # fig = tpl.figure()
-    # fig.hist(counts, bin_edges, orientation="horizontal", force_ascii=False)
-    # fig.show()
-    # print("\n maximum wavenumber values")
-    # counts, bin_edges = np.histogram(xmax_list, bins=20)
-    # fig = tpl.figure()
-    # fig.hist(counts, bin_edges, orientation="horizontal", force_ascii=False)
-    # fig.show()    
-    
-    
+  
     #process spectra
     processed_spectra_list = processSpectra(spectra_list)
     
@@ -169,7 +155,6 @@ def get_lib_filelist(path): #the library files are in subfolders with material n
     return filelist
 
 
-from collections import Counter
 
 def get_library_stats(speclist):
     #print(path)
@@ -277,7 +262,7 @@ def dotScore(v1, v2):
     len1 = np.sqrt(np.dot(v1, v1))
     len2 = np.sqrt(np.dot(v2, v2))
     ds = np.arccos(np.dot(v1, v2) / (len1 * len2))
-    #print(ds)
+    
     return ds
 
 def dotProduct(v1, v2):
@@ -291,8 +276,12 @@ def dotProduct(v1, v2):
 
 
 def make_equal_spec_length(exp, lib):
+    ''' this function takes in two spectra object of arbitrary length
+    and find the overlapping portion and then makes truncated versions
+    of that section. The function then returns the two equal length spectra
+    as np.arrays '''
     
-    col= 'contodo'
+    col= 'contodo' #this is the column in the data we will use
     emin, emax = np.min(exp.specdata["cm-1"]), np.max(exp.specdata["cm-1"])
     lmin, lmax = np.min(lib.specdata["cm-1"]), np.max(lib.specdata["cm-1"])
     dif1 = emin - lmin
@@ -321,9 +310,7 @@ def make_equal_spec_length(exp, lib):
 
 
 def matchSpectra(exp_list, lib_list):
-    
     matched_exp_list = []
-    
     for exp in exp_list:  #loop through each experimental data
         scores = []
         dotproducts = []
@@ -331,15 +318,14 @@ def matchSpectra(exp_list, lib_list):
             xdata_, ldata_ = make_equal_spec_length(exp, lib)
             scores.append(dotScore(xdata_,ldata_)) 
             dotproducts.append(dotProduct(xdata_, ldata_))
-            
         best_match_idx = np.argmin(scores)       
         exp.match      = lib_list[best_match_idx].category
         exp.dotscore   = scores[best_match_idx]
         exp.dotproduct = dotproducts[best_match_idx]
         exp.matchspec  = lib_list[best_match_idx].specdata        
         matched_exp_list.append(exp)  
-        
     return matched_exp_list
+
 
 
 
@@ -379,12 +365,32 @@ Y88b  d88P 888 Y88b 888 888  888 888  888 888
 #!!!
 
 def processSpectra(spectra_list):
-
-    PRINT_STUFF = False
+    ''' This function takes in a list of Sectra Objects containing
+    raw raman spectral data. The data is processed using a variety of techniques
+    including DTW, 2nd Derivative, Mean-centering, and Sum-of-Squares Normalization.
+    An updated list of Spectra Objects containing processed data is then returned.
     
-    print("processing data...\n\t-Resampling...\n\tCalculating Gradient...\n\t",
-          "Calculating Zero-Baseline...\n\tCalculating DWT Coefficients")
-           
+    I somewhat regret using Pandas for this, but here it is...
+    
+    Each "column" contains the following data:
+    -----------------------------------------
+    cm-1         Wavenumbers
+    int          Raw, unprocessed Raman intensity
+    grad         DWT-Lowpass, Gradient, Mean-center, L2-Normalize
+    contodo      DWT-Lowpass, DWT-Background-correction, Gradient, Mean-center, L2-Normalize
+    zeroed       DWT-Lowpass, DWT-Background-correction, L2-Normalize, ?why not zero the bg?
+    
+    Anecdotally, contodo to works the best for spectral matching, but I suspect
+    grad should work equally well because there shouldnt really be a need for 
+    estimating and removing an extremely low frequency background (fluoresence)
+    when a second derivative will do about the same thing either way.
+    
+    
+    '''
+    
+    PRINT_STUFF = False
+    print("Processing data...\n\t-Resampling...\n\tCalculating Gradient...\n\t",
+          "Calculating Zero-Baseline...\n\tetc...")
     for c, s in enumerate(spectra_list):
         #print("WORKING ON            ", s.filename)
         #print(a_spectra.status)
@@ -392,7 +398,6 @@ def processSpectra(spectra_list):
             print("write code to handle data thats already been processed")
         elif s.status == "raw":
             #print("processing raw data...")
-            
             #define the beginning and end point as integers
             start = int(s.rawdata['cm-1'].min()+1)#.astype(int)
             stop = int(s.rawdata['cm-1'].max())#.astype(int)
@@ -400,7 +405,6 @@ def processSpectra(spectra_list):
             if (stop-start)%2 == 1:  stop-=1 #make sure spectrum is even
             num=stop-start
 
-           
             # s.min = rangeMin
             # s.max = rangeMax
             
@@ -464,35 +468,7 @@ def processSpectra(spectra_list):
             #print(spec[i].data['zeroed'].index)
             
             
-            ''' Generate DWT data for some reason '''
-            level=7
-            coeffs = pywt.wavedec(s.specdata['grad'], 'sym5', level=level)
-            #make sure the index of the dataframe is long enough to store the longest
-            #set of dwt coefficients
-            dwtidx = np.linspace(0,len(coeffs[level]), (len(coeffs[level])+1))
-            #print(dwtidx)
-            s.dwtdata = pd.DataFrame(index=dwtidx) #initialize spectra objects dwt data as a dataframe
-            for i in range(len(coeffs)):
-                s.dwtdata[("dwt-"+str(i))]  = pd.Series(coeffs[i])
-            #s.dwtdata['dwt-0']  = pd.Series(coeffs[0])
-            #s.dwtdata['dwt-1']  = pd.Series(coeffs[1])
-            #s.dwtdata['dwt-2']  = pd.Series(coeffs[2])
-            #s.dwtdata['dwt-3']  = pd.Series(coeffs[3])
-            #s.dwtdata['dwt-4']  = pd.Series(coeffs[4])
-            # print("dwt0 coeffs: ", len(coeffs[0]))
-            # print(s.dwtdata['dwt-0'].index)
-            # print("dwt1 coeffs: ", len(coeffs[1]))
-            # print(s.dwtdata['dwt-1'].index)
-            # print("dwt2 coeffs: ", len(coeffs[2]))
-            # print(s.dwtdata['dwt-2'].index)
-            # print("dwt3 coeffs: ", len(coeffs[3]))
-            # print(s.dwtdata['dwt-3'].index)
-            # print("dwt4 coeffs: ", len(coeffs[4]))
-            # print(s.dwtdata['dwt-4'])
-            
-            ''' generate training data for some reason '''
-            s.traindata = s.specdata['grad']#.to_numpy()
-            
+         
             #update status
             if PRINT_STUFF: print(s.filename, "...Done")
             s.status = "processed"
