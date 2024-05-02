@@ -26,6 +26,10 @@ exporttpath    = os.path.join(rootpath, "export")
 #import and process library
 liblist = mp.import_raw_library(librarypath)
 
+    
+
+
+
 #import and process experimental data
 explist = mp.import_expdata(experimentpath)
 

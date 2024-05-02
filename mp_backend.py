@@ -133,6 +133,34 @@ def import_raw_library(librarypath):
         print("saving pickle fils to: ", picklepath)
         pickle.dump(processed_spectra_list, open(picklepath, "wb"))
     
+    #save a summary image of all library spectra sorted into categories
+    save_libimage = True
+    if save_libimage:
+        green = "#8945fb"    
+        liblist = processed_spectra_list
+        
+        #get categories
+        categories = sorted(list(set([i.category for i in liblist])))
+        
+        #define plot
+        cols = 1
+        rows = len(categories)
+        fig, ax = plt.subplots(rows,1, figsize=(6,20))
+
+        #plot each category
+        for i, cat in enumerate(categories):
+            for s in liblist:
+                if s.category == cat:
+                    ax[i].plot(s.specdata['cm-1'], s.specdata['zeroed'], color=green, alpha=0.1)
+                    ax[i].set_title(cat, loc='left')
+                    ax[i].set_yticks([])
+        plt.tight_layout()
+
+        #save the figure
+        rootpath, filename = os.path.split(__file__)  # get folder and filename of this script
+        libsumpath    = os.path.join(rootpath, "Library Summary.png")
+        plt.savefig(libsumpath)
+    
     return processed_spectra_list
 
 
