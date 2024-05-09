@@ -726,4 +726,34 @@ def export_images(matched_speclist): #export images
     #a_string = "test" + mpath + "\n" + base_path + "\n" + img_filepath
     
     return #a_string
-                                                     
+                            
+
+              
+import numpy as np                         
+def export_csv(matched_spectra): #export images
+    print("saving excel files")
+    
+    #generate filepath
+    rootpath, filename = os.path.split(__file__)  # get folder and filename of this script
+    exportpath    = os.path.join(rootpath, "export-csv")
+    if not os.path.exists(exportpath): os.makedirs(exportpath)
+    
+    
+    for s in matched_spectra:
+        
+        
+        #save experiment spectrum
+        excel_filepath = os.path.join(exportpath, (s.samplename + ".xlsx"))
+        col1 = np.array(s.specdata["cm-1"])
+        col2 = np.array(s.specdata["zeroed"])
+        col3 = np.array(s.matchspec["cm-1"])
+        col4 = np.array(s.matchspec["zeroed"]) 
+        #exceldata = np.transpose([col1, col2, col3, col4])
+        exceldata = zip(col1, col2, col3, col4)
+        column_names = ["Sample",s.samplename,"Library",s.match]
+        
+        df = pd.DataFrame(exceldata, columns=column_names)
+        df.to_excel(excel_filepath, index=False)
+    
+    return #a_string
+                                       

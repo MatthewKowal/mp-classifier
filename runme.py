@@ -38,6 +38,7 @@ explist = mp.import_expdata(experimentpath)
 matched_spectra = mp.matchSpectra(explist, liblist)
 
 
-#print output
+#generate output
 mp.export_excel(matched_spectra)
 mp.export_images(matched_spectra)
+mp.export_csv(matched_spectra)
